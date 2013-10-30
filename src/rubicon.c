@@ -11,10 +11,6 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
-MODULE_LICENSE("Proprietary")
-MODULE_DESCRIPTION("netfilter demo")
-MODULE_AUTHOR("Ruslan Pislari")
-
 /* IP Hooks */
 /* After promisc drops, checksum checks. */
 #define NF_IP_PRE_ROUTING       0
@@ -39,10 +35,10 @@ static unsigned int rubi_hook_fn(unsigned int hooknum, struct sk_buff *skb, cons
 }
 
 static struct nf_hook_ops rubi_hook_ops __read_mostly = {
-  .pf		= NFPROTO_IPV4,
-  .priority	= NF_IP_PRI_FIRST + 1,
-  .hooknum 	= NF_IP_LOCAL_OUT,
-  .hook		= rubi_hook_fn,
+  .pf       = NFPROTO_IPV4,
+  .priority = NF_IP_PRI_FIRST + 1,
+  .hooknum  = NF_IP_LOCAL_OUT,
+  .hook     = rubi_hook_fn,
 };
 
 static int __init rubi_hook_init(void)
@@ -57,5 +53,9 @@ static void __exit rubi_hook_exit(void)
   nf_unregister_hook(&rubi_hook_ops);
 }
 
-module_init(rubi_hook_init);
-module_exit(rubi_hook_exit);
+module_init(rubi_hook_init)
+module_exit(rubi_hook_exit)
+
+MODULE_LICENSE("Proprietary");
+MODULE_DESCRIPTION("netfilter demo");
+MODULE_AUTHOR("Ruslan Pislari");
