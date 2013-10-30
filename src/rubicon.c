@@ -11,6 +11,9 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
+#include "rubi_udp_hook.h"
+#include "rubi_tcp_hook.h"
+
 /* IP Hooks */
 /* After promisc drops, checksum checks. */
 #define NF_IP_PRE_ROUTING       0
@@ -29,9 +32,16 @@ static unsigned int rubi_hook_fn(unsigned int hooknum, struct sk_buff *skb, cons
   struct iphdr *ip_header;
   if(!skb) { return NF_ACCEPT;}
 
-  ip_header = (struct iphdr *)skb_network_header(skb);   
-
-  return NF_ACCEPT;
+  ip_header = (struct iphdr *)skb_network_header(skb); 
+  
+  switch (ip_header->protocol) {
+    case IPPROTO_UDP:
+      return rubi_upd_hook(skb_transport_header(skb));
+    case IPPROTO_TCP:
+      return rubi_tcp_hook(skb_transport_header(skb));
+    default:
+      return NF_ACCEPT;
+  }
 }
 
 static struct nf_hook_ops rubi_hook_ops __read_mostly = {
@@ -43,13 +53,13 @@ static struct nf_hook_ops rubi_hook_ops __read_mostly = {
 
 static int __init rubi_hook_init(void)
 {
-  printk(KERN_INFO "init_module() called\n");
+  printk(KERN_INFO "rubi_hook_init() called\n");
   return nf_register_hook(&rubi_hook_ops);
 }
 
 static void __exit rubi_hook_exit(void)
 {
-  printk(KERN_INFO "cleanup_module() called\n");
+  printk(KERN_INFO "rubi_hook_exit() called\n");
   nf_unregister_hook(&rubi_hook_ops);
 }
 
