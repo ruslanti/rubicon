@@ -6,6 +6,6 @@
  */
 #include <linux/netfilter.h>
 
-static inline int rubi_upd_hook(unsigned char *udp) {
+int rubi_udp_hook(struct sk_buff *skb) {
   return NF_ACCEPT;
 }
