@@ -13,7 +13,6 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <net/netfilter/nf_conntrack.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
 
 //#include "rubi_udp_hook.h"
 //#include "rubi_tcp_hook.h"
@@ -60,7 +59,6 @@ int rubi_tcp_hook(struct sk_buff *skb) {
 }
 
 int rubi_udp_hook(struct sk_buff *skb) {
-  ip_conntrack_get(skb);
   return NF_ACCEPT;
 }
 
