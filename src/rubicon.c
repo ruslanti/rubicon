@@ -29,6 +29,8 @@
 #define NF_IP_POST_ROUTING      4
 #define NF_IP_NUMHOOKS
 
+#define DEBUG
+
 int rubi_tcp_hook(struct sk_buff *skb)
 {
 	enum ip_conntrack_info ctinfo;
@@ -42,25 +44,56 @@ int rubi_tcp_hook(struct sk_buff *skb)
 	if (ntohs(tcp_header->source) == 80 || ntohs(tcp_header->dest) == 80) {
 
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct == NULL)
-			printk(KERN_INFO "This is --ctstate INVALID\n");
-		else if (ct == &nf_conntrack_untracked)
-			printk(KERN_INFO "This one is not tracked\n");
-		else if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW)
-			printk(KERN_INFO
-			       "new connection %d", ctinfo);
-		else if (ctinfo % IP_CT_IS_REPLY == IP_CT_RELATED)
-			printk(KERN_INFO
-			       "related connection %d", ctinfo);
-		else if (ctinfo % IP_CT_IS_REPLY == IP_CT_ESTABLISHED) {
-			//printk(KERN_INFO "You can figure out this one!\n");
-			//return NF_ACCEPT;
+		/*
+		   if (ct == NULL)
+		   printk(KERN_INFO "This is --ctstate INVALID\n");
+		   else if (ct == &nf_conntrack_untracked)
+		   printk(KERN_INFO "This one is not tracked\n");
+		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW)
+		   printk(KERN_INFO
+		   "new connection %d", ctinfo);
+		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_RELATED)
+		   printk(KERN_INFO
+		   "related connection %d", ctinfo);
+		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_ESTABLISHED) {
+		   //printk(KERN_INFO "You can figure out this one!\n");
+		   //return NF_ACCEPT;
+		   }
+		 */
+		if (ct != NULL) {
+			if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW) {
+				struct nf_conntrack_tuple *t =
+				    &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+
+				printk(KERN_INFO
+				       "%p req tuple %p: %pI4:%hu -> %pI4:%hu\n",
+				       ct, t,
+				       &t->src.u3.ip, ntohs(t->src.u.all), 
+				       &t->dst.u3.ip, ntohs(t->dst.u.all));
+
+				t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+				printk(KERN_INFO
+				       "%p res tuple %p: %pI4:%hu -> %pI4:%hu\n",
+				       ct, t,
+				       &t->src.u3.ip, ntohs(t->src.u.all), 
+				       &t->dst.u3.ip, ntohs(t->dst.u.all));
+			}
+			//printk(KERN_INFO "src ip %pI4:%d, dst ip %pI4:%d, ct %p, ctinfo %d, flags=%c%c%c%c%c%c",
+			/*       &ip_header->saddr, ntohs(tcp_header->source),
+			   &ip_header->daddr, ntohs(tcp_header->dest),
+			   ct, ctinfo, 
+			   tcp_header->urg ? 'U' : '-',
+			   tcp_header->ack ? 'A' : '-',
+			   tcp_header->psh ? 'P' : '-',
+			   tcp_header->rst ? 'R' : '-',
+			   tcp_header->syn ? 'S' : '-',
+			   tcp_header->fin ? 'F' : '-'
+			   );
+
+			 */
 		}
 
-		printk(KERN_INFO "src ip %pI4:%d, dst ip %pI4:%d, seq %d, ctinfo %d",
-		       &ip_header->saddr, ntohs(tcp_header->source),
-		       &ip_header->daddr, ntohs(tcp_header->dest),
-		       tcp_header->seq, ctinfo);
 	}
 
 	return NF_ACCEPT;
@@ -96,18 +129,18 @@ static unsigned int rubi_hook_fn(unsigned int hooknum, struct sk_buff *skb,
 #define HOOKS_NUM   2
 
 static struct nf_hook_ops rubi_hooks_ops[] = {
-  {
-	.pf = NFPROTO_IPV4,
-	.priority = NF_IP_PRI_LAST,
-	.hooknum = NF_IP_LOCAL_OUT,
-	.hook = rubi_hook_fn,
-  },
-  {
-    .pf = NFPROTO_IPV4,
-    .priority = NF_IP_PRI_LAST,
-    .hooknum = NF_IP_LOCAL_IN,
-    .hook = rubi_hook_fn,
-  }
+	{
+	 .pf = NFPROTO_IPV4,
+	 .priority = NF_IP_PRI_LAST,
+	 .hooknum = NF_IP_LOCAL_OUT,
+	 .hook = rubi_hook_fn,
+	 },
+	{
+	 .pf = NFPROTO_IPV4,
+	 .priority = NF_IP_PRI_LAST,
+	 .hooknum = NF_IP_LOCAL_IN,
+	 .hook = rubi_hook_fn,
+	 }
 };
 
 static int __init rubi_hook_init(void)
