@@ -10,8 +10,6 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter/nf_conntrack_common.h>
 #include <net/netfilter/nf_conntrack.h>
 
 //#include "rubi_udp_hook.h"
@@ -27,9 +25,6 @@
 #define NF_IP_LOCAL_OUT         3
 /* Packets about to hit the wire. */
 #define NF_IP_POST_ROUTING      4
-#define NF_IP_NUMHOOKS
-
-#define DEBUG
 
 int rubi_tcp_hook(struct sk_buff *skb)
 {
@@ -68,7 +63,7 @@ int rubi_tcp_hook(struct sk_buff *skb)
 				printk(KERN_INFO
 				       "%p req tuple %p: %pI4:%hu -> %pI4:%hu\n",
 				       ct, t,
-				       &t->src.u3.ip, ntohs(t->src.u.all), 
+				       &t->src.u3.ip, ntohs(t->src.u.all),
 				       &t->dst.u3.ip, ntohs(t->dst.u.all));
 
 				t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
@@ -76,7 +71,7 @@ int rubi_tcp_hook(struct sk_buff *skb)
 				printk(KERN_INFO
 				       "%p res tuple %p: %pI4:%hu -> %pI4:%hu\n",
 				       ct, t,
-				       &t->src.u3.ip, ntohs(t->src.u.all), 
+				       &t->src.u3.ip, ntohs(t->src.u.all),
 				       &t->dst.u3.ip, ntohs(t->dst.u.all));
 			}
 			//printk(KERN_INFO "src ip %pI4:%d, dst ip %pI4:%d, ct %p, ctinfo %d, flags=%c%c%c%c%c%c",
