@@ -11,17 +11,17 @@
 const char CRLF[] = "\x0D\x0A";
 const char ERR[] = "fail";
 
-char *parse_char(unsigned char **p, unsigned char ch)
+const char* parse_char(unsigned char **p, unsigned char ch)
 {
 	if (ch == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
-char *parse_string(unsigned char **p, const unsigned char *tofind, int len,
+const char* parse_string(unsigned char **p, const char *tofind, int len,
 		   int case_sensitive)
 {
 	int ret = -1;
@@ -33,163 +33,190 @@ char *parse_string(unsigned char **p, const unsigned char *tofind, int len,
 	if (0 == ret)
 		(*p) += len;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // CHAR = <any US-ASCII character (octets 0 - 127)>
-char *parse_ascii(unsigned char **p)
+const char* parse_ascii(unsigned char **p)
 {
 	if (**p >= 0 && **p <= 127)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // UPALPHA = <any US-ASCII uppercase letter "A".."Z">
-char *parse_upalpha(unsigned char **p)
+const char* parse_upalpha(unsigned char **p)
 {
 	if (**p >= 'A' && **p <= 'Z')
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // LOALPHA = <any US-ASCII lowercase letter "a".."z">
-char *parse_loalpha(unsigned char **p)
+const char* parse_loalpha(unsigned char **p)
 {
 	if (**p >= 'a' && **p <= 'z')
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // ALPHA = UPALPHA | LOALPHA
-char *parse_alpha(unsigned char **p)
+const char* parse_alpha(unsigned char **p)
 {
 	if ((**p >= 'a' && **p <= 'z') || (**p >= 'A' && **p <= 'Z'))
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
-char *parse_alphanum(unsigned char **p)
+const char* parse_alphanum(unsigned char **p)
 {
 	if ((**p >= 'a' && **p <= 'z') || (**p >= 'A' && **p <= 'Z')
 	    || (**p >= '0' && **p <= '9'))
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // DIGIT = <any US-ASCII digit "0".."9">
-char *parse_digit(unsigned char **p)
+const char* parse_digit(unsigned char **p)
 {
 	if (**p >= '0' && **p <= '9') {
 		(*p)++;
 		return NULL;
 	}
 
-	return (char *)ERR;
+	return ERR;
+}
+
+// 1-digit = 1*DIGIT
+const char* parse_1_digit(unsigned char** p)
+{
+    int len = 0;
+    while(!parse_digit(p))
+        len++;
+
+    return len ? NULL : ERR;
+}
+
+const char* parse_digit_min_max(unsigned char** p, int min, int max)
+{
+    int len = 0;
+    unsigned char* ptmp = *p;
+
+    while(**p >= '0' && **p <= '9')
+    {
+            (*p)++;
+            len++;
+    }
+
+    if(len < min || len > max)
+        *p= ptmp;
+
+    return (len >= min && len <= max) ? NULL : ERR;
 }
 
 // CTL = <any US-ASCII control character (octets 0 - 31) and DEL (127)>
-char *parse_ctl(unsigned char **p)
+const char* parse_ctl(unsigned char **p)
 {
 	if ((**p >= '\x00' && **p <= '\x1F') || **p == '\x7F') {
 		(*p)++;
 		return NULL;
 	}
 
-	return (char *)ERR;
+	return ERR;
 }
 
 // CR = <US-ASCII CR, carriage return (13)>
-char *parse_carriage_return(unsigned char **p)
+const char* parse_carriage_return(unsigned char **p)
 {
 	if (CR == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // LF = <US-ASCII LF, linefeed (10)>
-char *parse_linefeed(unsigned char **p)
+const char* parse_linefeed(unsigned char **p)
 {
 	if (LF == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // SP = <US-ASCII SP, space (32)>
-char *parse_space(unsigned char **p)
+const char* parse_space(unsigned char **p)
 {
 	if (SP == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // HTAB = <US-ASCII HTAB, horizontal-tab (9)>
-char *parse_tab(unsigned char **p)
+const char* parse_tab(unsigned char **p)
 {
 	if (HTAB == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // CRLF = CR LF
-char *parse_crlf(unsigned char **p)
+const char* parse_crlf(unsigned char **p)
 {
 	return parse_string(p, CRLF, 2, PARSE_TRUE);
 }
 
 // <"> = <US-ASCII double-quote mark (34)>
-char *parse_dquote(unsigned char **p)
+const char* parse_dquote(unsigned char **p)
 {
 	if (DQUOTE == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // WSP = SP / HTAB
-char *parse_wsp(unsigned char **p)
+const char* parse_wsp(unsigned char **p)
 {
 	if (SP == **p || HTAB == **p)
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // LWS = [*WSP CRLF] 1*WSP
 // LWS = [CRLF] 1*WSP
-char *parse_lws(unsigned char **p)
+const char* parse_lws(unsigned char **p)
 {
 	unsigned char *ptmp = *p;
 	int arr[3][4] = { {1, 1, 3, 3}, {2, 2, -1, -1}, {-1, 4, -1, 4} };
@@ -206,7 +233,7 @@ char *parse_lws(unsigned char **p)
 		state = arr[line][state];
 		if (-1 == state) {
 			*p = ptmp;
-			return (char *)ERR;
+			return ERR;
 		}
 	}
 	while (state != 4);
@@ -217,7 +244,7 @@ char *parse_lws(unsigned char **p)
 // Rule text = byte-string
 //       byte-string = 1*(0x01..0x09|0x0b|0x0c|0x0e..0xff)         ;any byte except NUL, CR or LF
 // TEXT = <any OCTET except CTLs, but including LWS>
-char *parse_text(unsigned char **p)
+const char* parse_text(unsigned char **p)
 {
 	int len = 0;
 	while (0 != (char)**p) {
@@ -231,23 +258,23 @@ char *parse_text(unsigned char **p)
 		(*p)++;
 	}
 
-	return len ? NULL : (char *)ERR;
+	return len ? NULL : ERR;
 }
 
 // HEX = "A" | "B" | "C" | "D" | "E" | "F"| "a" | "b" | "c" | "d" | "e" | "f" | DIGIT
-char *parse_hex_digit(unsigned char **p)
+const char* parse_hex_digit(unsigned char **p)
 {
 	if ((**p >= 'A' && **p <= 'F') || (**p >= 'a' && **p <= 'f')
 	    || (**p >= '0' && **p <= '9'))
 		(*p)++;
 	else
-		return (char *)ERR;
+		return ERR;
 
 	return NULL;
 }
 
 // token = 1*<any CHAR except CTLs or separators>
-char *parse_token(unsigned char **p)
+const char* parse_token(unsigned char **p)
 {
 	int len = 0;
 	while (1) {
@@ -259,14 +286,14 @@ char *parse_token(unsigned char **p)
 			if (len > 0) {
 				return NULL;
 			}
-			return (char *)ERR;
+			return ERR;
 		}
 	}
 }
 
 // separators     = "(" | ")" | "<" | ">" | "@" | "," | ";" | ":" | "\" | <"> |
 //                  "/" | "[" | "]" | "?" | "=" | "{" | "}" | SP | HTAB
-char *parse_separator(unsigned char **p)
+const char* parse_separator(unsigned char **p)
 {
 	switch (**p) {
 	case '(':
@@ -291,17 +318,17 @@ char *parse_separator(unsigned char **p)
 		(*p)++;
 		break;
 	default:
-		return (char *)ERR;
+		return ERR;
 	}
 
 	return NULL;
 }
 
 // comment = "(" *( ctext | quoted-pair | comment ) ")"
-char *parse_comment(unsigned char **p)
+const char* parse_comment(unsigned char **p)
 {
 	if (parse_char(p, '('))
-		return (char *)ERR;
+		return ERR;
 
 	if (!parse_char(p, ')'))
 		return NULL;
@@ -334,11 +361,11 @@ char *parse_comment(unsigned char **p)
 	if (!parse_char(p, ')'))
 		return NULL;
 	else
-		return (char *)ERR;
+		return ERR;
 }
 
 // ctext = <any TEXT excluding "(" and ")">
-char *parse_ctext(unsigned char **p)
+const char* parse_ctext(unsigned char **p)
 {
 	int len = 0;
 	while (0 != (char)**p) {
@@ -352,27 +379,27 @@ char *parse_ctext(unsigned char **p)
 		(*p)++;
 	}
 
-	return len ? NULL : (char *)ERR;
+	return len ? NULL : ERR;
 }
 
 // quoted-pair    = "\" CHAR
-char *parse_quoted_pair(unsigned char **p)
+const char* parse_quoted_pair(unsigned char **p)
 {
 	if (parse_char(p, '\\'))
-		return (char *)ERR;
+		return ERR;
 
 	if (is_char(**p))
 		(*p)++;
 	else {
 		(*p)--;
-		return (char *)ERR;
+		return ERR;
 	}
 
 	return NULL;
 }
 
 // quoted-string  = ( <"> *(qdtext | quoted-pair ) <"> )
-char *parse_quoted_string(unsigned char **p)
+const char* parse_quoted_string(unsigned char **p)
 {
 	unsigned char *ptmp = *p;
 	int arr[4][4] =
@@ -395,7 +422,7 @@ char *parse_quoted_string(unsigned char **p)
 		state = arr[line][state];
 		if (-1 == state) {
 			*p = ptmp;
-			return (char *)ERR;
+			return ERR;
 		}
 	}
 	while (state != 99);
@@ -404,7 +431,7 @@ char *parse_quoted_string(unsigned char **p)
 }
 
 // qdtext = <any TEXT except <">>
-char *parse_qdtext(unsigned char **p)
+const char* parse_qdtext(unsigned char **p)
 {
 	int len = 0;
 	while (0 != (char)**p) {
@@ -418,5 +445,5 @@ char *parse_qdtext(unsigned char **p)
 		(*p)++;
 	}
 
-	return len ? NULL : (char *)ERR;
+	return len ? NULL : ERR;
 }

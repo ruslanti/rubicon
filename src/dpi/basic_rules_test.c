@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include "minunit.h"
+#include "basic_rules.h"
 
 int tests_run = 0;
 
@@ -22,7 +23,7 @@ int tests_run = 0;
 	return 0; 																		\
 	}
 
-char *test = "a2\n\r\n \t\r\n  t  \r\n  Xlongtext\r\n  including LWS\x11\"Dtoken<A(text)(comment2(test))(fail comment";
+unsigned char *test = "a2\n\r\n \t\r\n  t  \r\n  Xlongtext\r\n  including LWS\x11\"Dtoken<A(text)(comment2(test))(fail comment";
 
 PARSE_ASSERT(alpha, alpha, test)
 PARSE_ASSERT(digit, digit, test)

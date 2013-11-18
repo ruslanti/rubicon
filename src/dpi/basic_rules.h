@@ -42,32 +42,34 @@ static inline int is_separator(unsigned char ch)
 	    || ch == '{' || ch == '}' || ch == SP || ch == HTAB;
 }
 
-char *parse_char(unsigned char **p, unsigned char ch);
-char *parse_string(unsigned char **p, const unsigned char *tofind, int len,
+const char* parse_char(unsigned char **p, unsigned char ch);
+const char* parse_string(unsigned char **p, const char *tofind, int len,
 		   int case_sensitive);
-char *parse_ascii(unsigned char **p);
-char *parse_upalpha(unsigned char **p);
-char *parse_loalpha(unsigned char **p);
-char *parse_alpha(unsigned char **p);
-char *parse_alphanum(unsigned char **p);
-char *parse_digit(unsigned char **p);
-char *parse_ctl(unsigned char **p);
-char *parse_carriage_return(unsigned char **p);
-char *parse_linefeed(unsigned char **p);
-char *parse_space(unsigned char **p);
-char *parse_tab(unsigned char **p);
-char *parse_crlf(unsigned char **p);
-char *parse_dquote(unsigned char **p);
-char *parse_wsp(unsigned char **p);
-char *parse_lws(unsigned char **p);
-char *parse_text(unsigned char **p);
-char *parse_hex_digit(unsigned char **p);
-char *parse_token(unsigned char **p);
-char *parse_separator(unsigned char **p);
-char *parse_comment(unsigned char **p);
-char *parse_ctext(unsigned char **p);
-char *parse_quoted_pair(unsigned char **p);
-char *parse_quoted_string(unsigned char **p);
-char *parse_qdtext(unsigned char **p);
+const char* parse_ascii(unsigned char **p);
+const char* parse_upalpha(unsigned char **p);
+const char* parse_loalpha(unsigned char **p);
+const char* parse_alpha(unsigned char **p);
+const char* parse_alphanum(unsigned char **p);
+const char* parse_digit(unsigned char **p);
+const char* parse_1_digit(unsigned char** p);
+const char* parse_digit_min_max(unsigned char** p, int min, int max);
+const char* parse_ctl(unsigned char **p);
+const char* parse_carriage_return(unsigned char **p);
+const char* parse_linefeed(unsigned char **p);
+const char* parse_space(unsigned char **p);
+const char* parse_tab(unsigned char **p);
+const char* parse_crlf(unsigned char **p);
+const char* parse_dquote(unsigned char **p);
+const char* parse_wsp(unsigned char **p);
+const char* parse_lws(unsigned char **p);
+const char* parse_text(unsigned char **p);
+const char* parse_hex_digit(unsigned char **p);
+const char* parse_token(unsigned char **p);
+const char* parse_separator(unsigned char **p);
+const char* parse_comment(unsigned char **p);
+const char* parse_ctext(unsigned char **p);
+const char* parse_quoted_pair(unsigned char **p);
+const char* parse_quoted_string(unsigned char **p);
+const char* parse_qdtext(unsigned char **p);
 
 #endif /* BASIC_RULES_H_ */
