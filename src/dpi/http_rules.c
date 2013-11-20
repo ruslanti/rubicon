@@ -13,6 +13,7 @@
 
 #include "basic_rules.h"
 #include "http_rules.h"
+#include "url_rules.h"
 
 const char GET[] 		= "GET";
 const char PUT[] 		= "PUT";
@@ -34,13 +35,13 @@ const char* parse_http_version(unsigned char** p)
         return (char*)ERR;
 
     int failed = 0;
-    if(parse_1_digit(p))
+    if(parse_digits(p))
         failed = 1;
 
     if(!failed && parse_char(p, '.'))
         failed = 1;
 
-    if(!failed && parse_1_digit(p))
+    if(!failed && parse_digits(p))
         failed = 1;
 
     if(failed)
@@ -257,8 +258,14 @@ const char* parse_method(unsigned char** p)
 // Request-URI    = "*" | absoluteURI | abs_path | authority
 const char* parse_request_uri(unsigned char** p)
 {
-	// TODO
-	return NULL;
+	if (!parse_char(p, '*'))
+		return NULL;
+	if (!parse_httpurl(p))
+		return NULL;
+	if (!parse_char(p, '/'))
+		return parse_hpath(p);
+
+	return ERR;
 }
 
 // Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF

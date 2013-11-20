@@ -19,6 +19,16 @@
 extern const char CRLF[];
 extern const char ERR[];
 
+static inline int is_alpha(unsigned char ch)
+{
+	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+}
+
+static inline int is_digit(unsigned char ch)
+{
+	return (ch >= '0' && ch <= '9');
+}
+
 static inline int is_hex_digit(unsigned char ch)
 {
 	return (ch >= 'A' && ch <= 'F') || (ch >= '0' && ch <= '9');
@@ -51,7 +61,7 @@ const char* parse_loalpha(unsigned char **p);
 const char* parse_alpha(unsigned char **p);
 const char* parse_alphanum(unsigned char **p);
 const char* parse_digit(unsigned char **p);
-const char* parse_1_digit(unsigned char** p);
+const char* parse_digits(unsigned char** p);
 const char* parse_digit_min_max(unsigned char** p, int min, int max);
 const char* parse_ctl(unsigned char **p);
 const char* parse_carriage_return(unsigned char **p);

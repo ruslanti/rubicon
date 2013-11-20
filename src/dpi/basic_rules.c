@@ -104,8 +104,8 @@ const char* parse_digit(unsigned char **p)
 	return ERR;
 }
 
-// 1-digit = 1*DIGIT
-const char* parse_1_digit(unsigned char** p)
+// digits = 1*DIGIT
+const char* parse_digits(unsigned char** p)
 {
     int len = 0;
     while(!parse_digit(p))
