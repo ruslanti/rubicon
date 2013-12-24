@@ -1,0 +1,7 @@
+S   = A C B
+S   = C "b" B
+S   = B "a"
+A   = "d" "a"
+A   = B C
+B   = "g" | EPSILON
+C   = "h" | EPSILON
