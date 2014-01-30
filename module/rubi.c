@@ -10,6 +10,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
+
 #include <net/netfilter/nf_conntrack.h>
 
 //#include "rubi_udp_hook.h"
@@ -39,22 +40,7 @@ int rubi_tcp_hook(struct sk_buff *skb)
 	if (ntohs(tcp_header->source) == 80 || ntohs(tcp_header->dest) == 80) {
 
 		ct = nf_ct_get(skb, &ctinfo);
-		/*
-		   if (ct == NULL)
-		   printk(KERN_INFO "This is --ctstate INVALID\n");
-		   else if (ct == &nf_conntrack_untracked)
-		   printk(KERN_INFO "This one is not tracked\n");
-		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW)
-		   printk(KERN_INFO
-		   "new connection %d", ctinfo);
-		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_RELATED)
-		   printk(KERN_INFO
-		   "related connection %d", ctinfo);
-		   else if (ctinfo % IP_CT_IS_REPLY == IP_CT_ESTABLISHED) {
-		   //printk(KERN_INFO "You can figure out this one!\n");
-		   //return NF_ACCEPT;
-		   }
-		 */
+
 		if (ct != NULL) {
 			if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW) {
 				struct nf_conntrack_tuple *t =
