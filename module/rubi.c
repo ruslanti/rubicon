@@ -10,6 +10,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
+#include <linux/netlink.h>
 
 #include <net/netfilter/nf_conntrack.h>
 
@@ -26,6 +27,8 @@
 #define NF_IP_LOCAL_OUT         3
 /* Packets about to hit the wire. */
 #define NF_IP_POST_ROUTING      4
+
+struct sock *nl_sk = NULL;
 
 int rubi_tcp_hook(struct sk_buff *skb)
 {
@@ -127,6 +130,13 @@ static struct nf_hook_ops rubi_hooks_ops[] = {
 static int __init rubi_hook_init(void)
 {
 	printk(KERN_INFO "rubi_hook_init() called");
+	printk(KERN_INFO "create netlink socket %d", 31);
+	nl_sk = netlink_kernel_create(&init_net, 31, 0);
+	if (!nl_sk) {
+		printk(KERN_ALERT "Error creating netlink socket.\n");
+		return -1;
+	}
+
 	return nf_register_hooks(rubi_hooks_ops, HOOKS_NUM);
 }
 
@@ -139,6 +149,6 @@ static void __exit rubi_hook_exit(void)
 module_init(rubi_hook_init);
 module_exit(rubi_hook_exit);
 
-MODULE_LICENSE("Proprietary");
+MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("netfilter demo");
 MODULE_AUTHOR("Ruslan Pislari");
