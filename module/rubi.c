@@ -17,6 +17,7 @@
 //#include "rubi_udp_hook.h"
 //#include "rubi_tcp_hook.h"
 
+#define HOOKS_NUM   			2
 /* IP Hooks */
 #define NF_IP_PRE_ROUTING       0
 /* If the packet is destined for this box. */
@@ -28,7 +29,42 @@
 /* Packets about to hit the wire. */
 #define NF_IP_POST_ROUTING      4
 
-struct sock *nl_sk = NULL;
+#define NETLINK_USER			31
+
+#define MAX_PAYLOAD 			1024
+
+static struct sock *nl_sk = NULL;
+
+
+
+int nl_stat(int i)
+{
+	u32 dst_portid = 0;
+	u32 dst_group = 1;
+	struct sk_buff *skb;
+	int err;
+
+	skb = netlink_alloc_skb(nl_sk, MAX_PAYLOAD, dst_portid, GFP_KERNEL);
+	if (skb == NULL)
+		return -1;
+
+	//NETLINK_CB(skb).portid	= dst_portid;
+	NETLINK_CB(skb).dst_group = dst_group;
+	//NETLINK_CB(skb).creds	= siocb->scm->creds;
+
+	printk(KERN_INFO "nl_sk protocol %d\n", nl_sk->sk_protocol);
+	/*multicast the message to all listening processes*/
+	err = netlink_broadcast(nl_sk, skb, dst_portid, dst_group, GFP_KERNEL);
+    if (err < 0) {
+               printk(KERN_ALERT "Error during netlink_broadcast: %i\n",err);
+               if (err == -3) {
+                       printk(KERN_ALERT "No such process\n");
+               }
+       }
+
+    //kfree_skb(skb);
+	return 1;
+}
 
 int rubi_tcp_hook(struct sk_buff *skb)
 {
@@ -49,7 +85,7 @@ int rubi_tcp_hook(struct sk_buff *skb)
 				struct nf_conntrack_tuple *t =
 				    &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 
-				printk(KERN_INFO
+				printk(KERN_DEBUG
 				       "%p req tuple %p: %pI4:%hu -> %pI4:%hu\n",
 				       ct, t,
 				       &t->src.u3.ip, ntohs(t->src.u.all),
@@ -57,7 +93,7 @@ int rubi_tcp_hook(struct sk_buff *skb)
 
 				t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
 
-				printk(KERN_INFO
+				printk(KERN_DEBUG
 				       "%p res tuple %p: %pI4:%hu -> %pI4:%hu\n",
 				       ct, t,
 				       &t->src.u3.ip, ntohs(t->src.u.all),
@@ -77,8 +113,9 @@ int rubi_tcp_hook(struct sk_buff *skb)
 
 			 */
 		}
-
+		nl_stat(1);
 	}
+
 
 	return NF_ACCEPT;
 }
@@ -110,7 +147,7 @@ static unsigned int rubi_hook_fn(unsigned int hooknum, struct sk_buff *skb,
 	}
 }
 
-#define HOOKS_NUM   2
+
 
 static struct nf_hook_ops rubi_hooks_ops[] = {
 	{
@@ -129,20 +166,26 @@ static struct nf_hook_ops rubi_hooks_ops[] = {
 
 static int __init rubi_hook_init(void)
 {
+	struct netlink_kernel_cfg cfg = {
+		.groups = 14,
+		.flags = NL_CFG_F_NONROOT_SEND,
+	};
+
 	printk(KERN_INFO "rubi_hook_init() called");
-	printk(KERN_INFO "create netlink socket %d", 31);
-	nl_sk = netlink_kernel_create(&init_net, 31, 0);
+
+	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
 	if (!nl_sk) {
 		printk(KERN_ALERT "Error creating netlink socket.\n");
 		return -1;
 	}
-
+	printk(KERN_INFO "--------------------------- %p\n", nl_sk);
 	return nf_register_hooks(rubi_hooks_ops, HOOKS_NUM);
 }
 
 static void __exit rubi_hook_exit(void)
 {
 	printk(KERN_INFO "rubi_hook_exit() called");
+	netlink_kernel_release(nl_sk);
 	nf_unregister_hooks(rubi_hooks_ops, HOOKS_NUM);
 }
 
@@ -152,3 +195,4 @@ module_exit(rubi_hook_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("netfilter demo");
 MODULE_AUTHOR("Ruslan Pislari");
+
