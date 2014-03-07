@@ -1,46 +1,42 @@
-/*
- ============================================================================
- Name        : stat.c
- Author      : ruslanti
- Version     :
- Copyright   : 
- Description : Hello World in C, Ansi-style
- ============================================================================
- */
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
 #include <linux/netlink.h>
+#include <netlink/socket.h>
 
 #include "stat.h"
 
-
 #define MAX_PAYLOAD 1024	/* maximum payload size */
-struct sockaddr_nl src_addr, dest_addr;
-struct nlmsghdr *nlh = NULL;
-struct iovec iov;
-int sock_fd;
-struct msghdr msg;
+
+static int my_input(struct nl_msg *msg, void *arg)
+{
+  return 0;
+}
 
 int main(void)
 {
-	sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
-	if (sock_fd < 0) {
-		perror("socket");
-		return -1;
-	}
-	memset(&src_addr, 0, sizeof(src_addr));
-	src_addr.nl_family = AF_NETLINK;
-	src_addr.nl_pid = getpid();	/* self pid */
-	src_addr.nl_groups = 1;
-	/* interested in group 1<<0 */
-	bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
+  struct nl_sock *sk;
+  
+  struct nl_msg *msg = nlmsg_alloc();
 
-	printf("Waiting for message from kernel\n");
+  sk = nl_socket_alloc();
+  if (!sk)
+    {
+      perror("cannot alloc nl socket");
+      return -1;
+    }
 
-	/* Read message from kernel */
-	recvmsg(sock_fd, &msg, 0);
-	printf(" Received message payload: %s\n", NLMSG_DATA(nlh));
-	close(sock_fd);
+  nl_socket_disable_seq_check(sk);
+
+  nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM, my_input, NULL);
+
+  if (nl_connect(sk, 21) != 0)
+    perror("nl_connect");
+
+  if (nl_send_auto(sk, msg))
+    perror("nl_send_auto");
+
+  if (nl_recvmsgs_default(sk))
+    perror("nl_recvmsgs_default");
+
+  nl_socket_free(sk);
 }
