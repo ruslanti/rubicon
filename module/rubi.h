@@ -16,5 +16,13 @@
 #define RUBINETLN_STATS 1
 #endif
 
+
+#define RUBY_NLTEST     0x11
+
+struct test {
+    int a1;
+    int a2;
+};
+
 #endif	/* RUBI_H */
 

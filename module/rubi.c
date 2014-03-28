@@ -32,32 +32,56 @@
 
 static struct sock *nl_sk = NULL;
 
-int nl_stat(int i) {
-    u32 dst_portid = 0;
-    u32 dst_group = 1;
-    struct sk_buff *skb;
-    int err;
-
-    skb = netlink_alloc_skb(nl_sk, MAX_PAYLOAD, dst_portid, GFP_KERNEL);
-    if (skb == NULL)
-        return -1;
-
-    //NETLINK_CB(skb).portid	= dst_portid;
-    NETLINK_CB(skb).dst_group = dst_group;
-    //NETLINK_CB(skb).creds	= siocb->scm->creds;
-
-    printk(KERN_INFO "nl_sk protocol %d\n", nl_sk->sk_protocol);
-    /*multicast the message to all listening processes*/
-    err = netlink_broadcast(nl_sk, skb, dst_portid, dst_group, GFP_KERNEL);
-    if (err < 0) {
-        printk(KERN_ALERT "Error during netlink_broadcast: %i\n", err);
-        if (err == -3) {
-            printk(KERN_ALERT "No such process\n");
-        }
+int nl_stat(int pid) {
+    struct nlmsghdr * nlh;
+    struct sk_buff * skb;
+    char *msg = "Hello from kernel";
+    int res;
+    struct test *t;
+    
+    skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+    if (!skb) {
+        printk(KERN_WARNING "Cannot alloc sk_buff with nlmsg_new()\n");
+        return -ENOMEM;
     }
+    
+    //msg_size = strlen(msg);
+    nlh = nlmsg_put(skb, 0, 0, RUBY_NLTEST, sizeof(struct test), 0);
+    if (!nlh)
+      goto nlmsg_failure;
+    
+    //memset(nlmsg_data(nlh), 0x0, nlmsg_len(nlh));
+    t = (struct test*)nlmsg_data(nlh);
+    t->a1 = 0x10;
+    t->a2 = 0x11;
+    
+    if (nla_put_u32(skb, 0xEE, 0xFF))
+        goto nla_put_failure;
+    
+    if (nla_put_string(skb, 0xAA, msg))
+        goto nla_put_failure;
+   /* if (!nlh) {
+        printk(KERN_WARNING "nlmsg_put(): Insufficient to store for message header or payload\n");
+        return -ENOMEM; 
+    }
+    
+    strncpy(nlmsg_data(nlh), msg, msg_size);
+    */ 
+    res = nlmsg_end(skb, nlh);
+    printk(KERN_INFO "Prepared %d bytes to send (%d) \n", res, nlmsg_len(nlh));
+    
+    res = nlmsg_unicast(nl_sk, skb, pid);
 
-    //kfree_skb(skb);
-    return 1;
+    if (res < 0) {
+        printk(KERN_WARNING "Error while sending unicast message\n");
+    }
+    return res;
+        
+    nlmsg_failure:
+    nla_put_failure:
+        nlmsg_cancel(skb, nlh);
+        kfree_skb(skb);
+        return -ENOMEM;
 }
 
 int rubi_tcp_hook(struct sk_buff *skb) {
@@ -133,63 +157,12 @@ static unsigned int rubi_hook_fn(const struct nf_hook_ops *ops,
     }
 }
 
-static int
-nl_step2(struct nlattr *cda[],
-        struct nlmsghdr *nlh) {
-    int pid = nlh->nlmsg_pid;
-
-    printk(KERN_INFO "nl_step2(%d, %d)", nlh->nlmsg_type, pid);
-    
-    return 0;
-}
-
-enum nlexample_msg_types {
-   NLEX_MSG_BASE = NLMSG_MIN_TYPE,
-   NLEX_MSG_UPD = NLEX_MSG_BASE,
-   NLEX_MSG_GET,
-   NLEX_MSG_MAX
-};
-
-enum nlexample_attr {
-   NLE_UNSPEC,
-   NLE_MYVAR,
-   __NLE_MAX,
-};
-
-#define NLE_MAX (__NLE_MAX - 1)
-
-static const struct nla_policy nle_info_policy[NLE_MAX + 1] = {
-    [NLE_MYVAR] =
-    { .type = NLA_U32},
-};
-
-static int
-nl_step(struct sk_buff *skb,
-        struct nlmsghdr *nlh) {
-    printk(KERN_INFO "nl_step");
-    int err;
-    struct nlattr * cda[NLE_MAX + 1];
-    struct nlattr *attr = NLMSG_DATA(nlh);
-    int attrlen = nlh->nlmsg_len - NLMSG_SPACE(0);
-
-    if (!ns_capable(init_net.user_ns, CAP_NET_ADMIN))
-        return -EPERM;
-
-    if (nlh->nlmsg_len < NLMSG_SPACE(0))
-        return -EINVAL;
-
-    printk(KERN_INFO "nl_step2(%d, %d)", nlh->nlmsg_type, nlh->nlmsg_pid);
-    
-    err = nla_parse(cda, NLE_MAX,
-            attr, attrlen, nle_info_policy);
-    if (err < 0)
-        return err;
-
-    return nl_step2(cda, nlh);
+static int nl_step(struct sk_buff *skb, struct nlmsghdr *nlh) {
+    printk(KERN_INFO "nl_step(%d, %d)\n", nlh->nlmsg_type, nlh->nlmsg_pid);
+    return nl_stat(nlh->nlmsg_pid);
 }
 
 static void nl_callback(struct sk_buff *skb) {
-    printk(KERN_INFO "nl_callback");
     netlink_rcv_skb(skb, &nl_step);
 }
 
@@ -197,13 +170,12 @@ static int rubi_netlink_init(void) {
     struct netlink_kernel_cfg cfg = {
         .groups = 0,
         .input = nl_callback,
-        //.flags = NL_CFG_F_NONROOT_SEND,
     };
 
     nl_sk = netlink_kernel_create(&init_net, NETLINK_RUBICON, &cfg);
     if (!nl_sk) {
         printk(KERN_ALERT "Error creating netlink socket.\n");
-        return -1;
+        return -ENODEV;
     }
     return 1;
 }
@@ -224,12 +196,12 @@ static struct nf_hook_ops rubi_hooks_ops[] = {
 };
 
 static int __init rubi_hook_init(void) {
-    printk(KERN_INFO "rubi_hook_init() called");
+    printk(KERN_INFO "rubi_hook_init() called\n");
     return rubi_netlink_init() && nf_register_hooks(rubi_hooks_ops, HOOKS_NUM);
 }
 
 static void __exit rubi_hook_exit(void) {
-    printk(KERN_INFO "rubi_hook_exit() called");
+    printk(KERN_INFO "rubi_hook_exit() called\n");
     if (nl_sk)
         netlink_kernel_release(nl_sk);
     nf_unregister_hooks(rubi_hooks_ops, HOOKS_NUM);
