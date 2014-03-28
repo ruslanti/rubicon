@@ -16,8 +16,42 @@
 
 #include <rubi.h>
 
-static int my_input(struct nl_msg *msg, void *arg) {
-    printf("received %d bytes\n", sizeof (msg));
+static int cb_msg_in(struct nl_msg *msg, void *arg) {
+    struct nlmsghdr *nlh;
+    
+    nl_msg_dump(msg, stdout);
+    
+    nlh = nlmsg_hdr(msg);
+
+    struct nlattr *hdr = nlmsg_attrdata(nlh, 0);
+    int remaining = nlmsg_attrlen(nlh, 0);
+        
+    while (nla_ok(hdr, remaining)) {
+        /* parse attribute here */
+        printf("1\n");
+        hdr = nla_next(hdr, &remaining);
+    };
+    return NL_OK;
+}
+
+static int cb_valid(struct nl_msg *msg, void *arg) {
+    struct nlmsghdr *nlh;
+    nl_msg_dump(msg, stdout);
+    
+    nlh = nlmsg_hdr(msg);
+    
+    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct test));
+    
+    int remaining = nlmsg_attrlen(nlh, sizeof(struct test));
+    
+    printf("attr len = %d\n", remaining);
+    
+    while (nla_ok(hdr, remaining)) {
+        printf("nla_type = %X\n", nla_type(hdr));
+        printf("nla_data = %X\n", nla_data(hdr));
+        hdr = nla_next(hdr, &remaining);
+    };
+    
     return NL_OK;
 }
 
@@ -37,7 +71,8 @@ int main(int argc, char** argv) {
 
     nl_socket_disable_seq_check(sk);
 
-    nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM, my_input, NULL);
+    //nl_socket_modify_cb(sk, NL_CB_MSG_IN, NL_CB_CUSTOM, cb_msg_in, NULL);
+    nl_socket_modify_cb(sk, NL_CB_VALID, NL_CB_CUSTOM, cb_valid, NULL);
 
     if (nl_connect(sk, NETLINK_RUBICON) != 0) {
         perror("nl_connect()");
@@ -49,16 +84,6 @@ int main(int argc, char** argv) {
     nl_socket_add_memberships(sk, RUBINETLN_STATS, 0);
 
     struct nl_msg *msg = nlmsg_alloc_simple(RTM_SETLINK, 0);
-    struct ifinfomsg ifi = {
-        .ifi_family = AF_INET,
-        .ifi_index = 0,
-    };
-
-    /* Append the protocol specific header (struct ifinfomsg)*/
-    if (nlmsg_append(msg, &ifi, sizeof (ifi), NLMSG_ALIGNTO) < 0) {
-        perror("nlmsg_append()");
-        exit(EXIT_FAILURE);
-    }
 
     NLA_PUT_U32(msg, ATTR_MY_STRUCT, 0x1010);
 
@@ -75,9 +100,9 @@ int main(int argc, char** argv) {
     while (1)
         nl_recvmsgs_default(sk);
 
-    nla_put_failure:
-        nlmsg_free(msg);
-        
+nla_put_failure:
+    nlmsg_free(msg);
+
     nl_socket_free(sk);
 
 }
