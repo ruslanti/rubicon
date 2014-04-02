@@ -14,7 +14,7 @@
 #include <netlink/socket.h>
 #include <netlink/msg.h>
 
-#include <rubi.h>
+#include <link.h>
 
 static int cb_msg_in(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
@@ -40,9 +40,9 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
     
     nlh = nlmsg_hdr(msg);
     
-    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct test));
+    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct tcp_stat));
     
-    int remaining = nlmsg_attrlen(nlh, sizeof(struct test));
+    int remaining = nlmsg_attrlen(nlh, sizeof(struct tcp_stat));
     
     printf("attr len = %d\n", remaining);
     

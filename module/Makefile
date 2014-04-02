@@ -1,5 +1,5 @@
-obj-m := rubi.o
-#rubi-objs := rubi_tcp_hook.o rubi_udp_hook.o
+obj-m := rubicon.o
+rubicon-objs := rubi.o link.o
 
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
