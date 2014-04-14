@@ -25,7 +25,7 @@ struct tcp_stat {
     int a2;
 };
 
-int link_tcp_stat(int pid);
+int link_tcp_stat(void);
 void link_callback(struct sk_buff *skb);
 int link_init(void);
 void link_release(void);

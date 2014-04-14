@@ -15,14 +15,16 @@
 
 struct sock *nl_sk;
 
-int link_tcp_stat(int pid) {
+int pid;
+
+int link_tcp_stat() {
     struct nlmsghdr * nlh;
     struct sk_buff * skb;
     char *msg = "Hello from kernel";
     int res;
     struct tcp_stat *t;
     
-    skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+    skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
     if (!skb) {
         printk(KERN_WARNING "Cannot alloc sk_buff with nlmsg_new()\n");
         return -ENOMEM;
@@ -55,10 +57,10 @@ int link_tcp_stat(int pid) {
     if (pid)
         res = nlmsg_unicast(nl_sk, skb, pid);
     else
-        res = nlmsg_multicast(nl_sk, skb, pid, 0, GFP_KERNEL);
+        res = nlmsg_multicast(nl_sk, skb, pid, RUBINETLN_STATS, GFP_ATOMIC);
     
     if (res < 0) {
-        printk(KERN_WARNING "Error while sending unicast message\n");
+        printk(KERN_WARNING "Error while sending message: %d\n", res);
     }
     return res;
         
@@ -71,7 +73,8 @@ int link_tcp_stat(int pid) {
 
 static int link_step(struct sk_buff *skb, struct nlmsghdr *nlh) {
     printk(KERN_INFO "nl_step(%d, %d)\n", nlh->nlmsg_type, nlh->nlmsg_pid);
-    return link_tcp_stat(nlh->nlmsg_pid);
+    pid = nlh->nlmsg_pid;
+    return link_tcp_stat();
 }
 
 void link_callback(struct sk_buff *skb) {
