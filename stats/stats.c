@@ -28,7 +28,6 @@ static int cb_msg_in(struct nl_msg *msg, void *arg) {
         
     while (nla_ok(hdr, remaining)) {
         /* parse attribute here */
-        printf("1\n");
         hdr = nla_next(hdr, &remaining);
     };
     return NL_OK;
@@ -40,9 +39,9 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
     
     nlh = nlmsg_hdr(msg);
     
-    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct tcp_stat));
+    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct conn_stat));
     
-    int remaining = nlmsg_attrlen(nlh, sizeof(struct tcp_stat));
+    int remaining = nlmsg_attrlen(nlh, sizeof(struct conn_stat));
     
     printf("attr len = %d\n", remaining);
     

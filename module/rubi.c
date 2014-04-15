@@ -73,7 +73,7 @@ int rubi_tcp_hook(struct sk_buff *skb) {
                      tcp_header->fin ? 'F' : '-'
                      );
              */
-            link_tcp_stat();
+            link_tcp_stat(ct, ip_header, tcp_header);
         }
         
         //      nl_stat(1);

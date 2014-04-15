@@ -17,12 +17,11 @@ struct sock *nl_sk;
 
 int pid;
 
-int link_tcp_stat() {
+int link_tcp_stat(struct nf_conn *ct, struct iphdr *ip, struct tcphdr *tcp) {
     struct nlmsghdr * nlh;
     struct sk_buff * skb;
-    char *msg = "Hello from kernel";
     int res;
-    struct tcp_stat *t;
+    struct conn_stat *t;
     
     skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
     if (!skb) {
@@ -30,27 +29,30 @@ int link_tcp_stat() {
         return -ENOMEM;
     }
     
-    nlh = nlmsg_put(skb, 0, 0, RUBY_NLTEST, sizeof(struct tcp_stat), 0);
+    nlh = nlmsg_put(skb, 0, 0, RUBY_NLTEST, sizeof(struct conn_stat), 0);
     if (!nlh)
       goto nlmsg_failure;
+
+    t = (struct conn_stat*)nlmsg_data(nlh);
+    t->conn_id = (u_int64_t)ct;
+    t->protocol = IPPROTO_TCP;
     
-    //memset(nlmsg_data(nlh), 0x0, nlmsg_len(nlh));
-    t = (struct tcp_stat*)nlmsg_data(nlh);
-    t->a1 = 0x10;
-    t->a2 = 0x11;
-    
-    if (nla_put_u32(skb, 0xEE, 0xFF))
+    if (nla_put_net32(skb, ATTR_IP_SRC_ADDR, ip->saddr))
         goto nla_put_failure;
     
-    if (nla_put_string(skb, 0xAA, msg))
+    if (nla_put_net32(skb, ATTR_IP_DST_ADDR, ip->daddr))
         goto nla_put_failure;
-   /* if (!nlh) {
-        printk(KERN_WARNING "nlmsg_put(): Insufficient to store for message header or payload\n");
-        return -ENOMEM; 
-    }
     
-    strncpy(nlmsg_data(nlh), msg, msg_size);
-    */ 
+    if (nla_put_net16(skb, ATTR_TCP_SRC_PORT, tcp->source))
+        goto nla_put_failure;
+    
+    if (nla_put_net16(skb, ATTR_TCP_DST_PORT, tcp->dest))
+        goto nla_put_failure;
+    
+    if (nla_put_flag(skb, ATTR_TCP_CONN_FLAG))
+        goto nla_put_failure;
+    
+
     res = nlmsg_end(skb, nlh);
     printk(KERN_INFO "Prepared %d bytes to send (%d) \n", res, nlmsg_len(nlh));
     
@@ -74,7 +76,7 @@ int link_tcp_stat() {
 static int link_step(struct sk_buff *skb, struct nlmsghdr *nlh) {
     printk(KERN_INFO "nl_step(%d, %d)\n", nlh->nlmsg_type, nlh->nlmsg_pid);
     pid = nlh->nlmsg_pid;
-    return link_tcp_stat();
+    return 0;//link_tcp_stat();
 }
 
 void link_callback(struct sk_buff *skb) {
