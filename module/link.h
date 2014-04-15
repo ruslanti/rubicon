@@ -21,8 +21,7 @@
 #endif
 
 struct tcp_stat {
-    int a1;
-    int a2;
+    int8 test;
 };
 
 int link_tcp_stat(void);
