@@ -35,21 +35,57 @@ static int cb_msg_in(struct nl_msg *msg, void *arg) {
 
 static int cb_valid(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
-    nl_msg_dump(msg, stdout);
+    int remaining, ip_ct_new, ip_ct_established, ip_ct_is_reply;
+    uint32_t saddr, daddr;
+    uint16_t source, dest, len, data_len;
     
+    //nl_msg_dump(msg, stdout);
     nlh = nlmsg_hdr(msg);
+    struct nlattr *nla = nlmsg_attrdata(nlh, sizeof(struct conn_stat));
+    remaining = nlmsg_attrlen(nlh, sizeof(struct conn_stat));
     
-    struct nlattr *hdr = nlmsg_attrdata(nlh, sizeof(struct conn_stat));
-    
-    int remaining = nlmsg_attrlen(nlh, sizeof(struct conn_stat));
-    
-    printf("attr len = %d\n", remaining);
-    
-    while (nla_ok(hdr, remaining)) {
-        printf("nla_type = %X\n", nla_type(hdr));
-        printf("nla_data = %X\n", nla_data(hdr));
-        hdr = nla_next(hdr, &remaining);
+    while (nla_ok(nla, remaining)) {
+        //printf("nla_type = %X\n", nla_type(nla));
+        //printf("nla_data = %X\n", nla_data(nla));
+        switch (nla_type(nla)) {
+            case ATTR_IP_CT_NEW:
+                ip_ct_new = nla_get_flag(nla);
+                break;
+            case ATTR_IP_CT_ESTABLISHED:
+                ip_ct_established = nla_get_flag(nla);
+                break;
+            case ATTR_IP_CT_IS_REPLY:
+                ip_ct_is_reply = nla_get_flag(nla);
+                break;
+            case ATTR_IP_SADDR:
+                saddr = nla_get_u32(nla);
+                break;
+            case ATTR_IP_DADDR:
+                daddr = nla_get_u32(nla);
+                break;
+            case ATTR_TCP_SOURCE:
+                source = nla_get_u16(nla);
+                break;
+            case ATTR_TCP_DEST:
+                dest = nla_get_u16(nla);
+                break;
+            case ATTR_SKB_SOURCE_LEN:
+                len = nla_get_u16(nla);
+                break;
+            case ATTR_SKB_SOURCE_DATA_LEN:
+                data_len = nla_get_u16(nla);
+                break;
+        }
+        nla = nla_next(nla, &remaining);
     };
+    
+    if (ip_ct_new) {
+        printf("new: %X:%d - %X:%d (%d, %d)\n", saddr, source, daddr, dest, len, data_len);
+    } else if (ip_ct_established) {
+        printf("established: (%d, %d)\n", len, data_len);
+    } else if (ip_ct_is_reply) {
+        printf("reply: (%d, %d)\n", len, data_len);
+    }
     
     return NL_OK;
 }

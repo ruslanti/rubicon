@@ -15,12 +15,19 @@
 #define RUBINETLN_STATS         1
 #define RUBY_NLTEST             0x11
 
-#define ATTR_IP_SRC_ADDR        1
-#define ATTR_IP_DST_ADDR        2
-#define ATTR_TCP_SRC_PORT       3
-#define ATTR_TCP_DST_PORT       4
-#define ATTR_TCP_CONN_FLAG      5
-#define ATTR_PKG_SIZE           6
+enum rubi_stat_attrs {
+    ATTR_IP_CT_ESTABLISHED,
+    ATTR_IP_CT_RELATED,
+    ATTR_IP_CT_NEW,
+    ATTR_IP_CT_IS_REPLY,
+
+    ATTR_IP_SADDR,
+    ATTR_IP_DADDR,
+    ATTR_TCP_SOURCE,
+    ATTR_TCP_DEST,
+    ATTR_SKB_SOURCE_LEN,
+    ATTR_SKB_SOURCE_DATA_LEN
+};
 
 
 struct conn_stat {
@@ -28,7 +35,7 @@ struct conn_stat {
     u_int8_t protocol;
 };
 
-int link_tcp_stat(struct nf_conn *ct, struct iphdr *ip, struct tcphdr *tcp);
+int link_tcp_stat(struct sk_buff *skb);
 void link_callback(struct sk_buff *skb);
 int link_init(void);
 void link_release(void);
