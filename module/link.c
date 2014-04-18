@@ -12,6 +12,7 @@
 #include <net/netfilter/nf_conntrack.h>
 
 #include "link.h"
+#include "rubi.h"
 
 struct sock *nl_sk;
 
@@ -30,6 +31,9 @@ int link_tcp_stat(struct sk_buff *skb) {
     int res;
     struct conn_stat *stat;
     
+    if (!pid)
+        return 0;
+    
     ct = nf_ct_get(skb, &ctinfo);
 
     if (ct == NULL) {
@@ -39,7 +43,7 @@ int link_tcp_stat(struct sk_buff *skb) {
     ip_header = (struct iphdr *) skb_network_header(skb);
     tcp_header = tcp_hdr(skb);
      
-    printk(KERN_INFO "src ip %pI4:%d, dst ip %pI4:%d, ct %p, ctinfo %d, flags=%c%c%c%c%c%c",
+    printk(KERN_DEBUG "src ip %pI4:%d, dst ip %pI4:%d, ct %p, ctinfo %d, flags=%c%c%c%c%c%c",
                     &ip_header->saddr, ntohs(tcp_header->source),
                      &ip_header->daddr, ntohs(tcp_header->dest),
                      ct, ctinfo, 
@@ -54,14 +58,14 @@ int link_tcp_stat(struct sk_buff *skb) {
     if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW) {
         // new connection
         struct nf_conntrack_tuple *t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-        printk(KERN_INFO
+        printk(KERN_DEBUG
             "%p req tuple %p: %pI4:%hu -> %pI4:%hu\n",
             ct, t,
             &t->src.u3.ip, ntohs(t->src.u.all),
             &t->dst.u3.ip, ntohs(t->dst.u.all));
 
         t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-        printk(KERN_INFO
+        printk(KERN_DEBUG
             "%p res tuple %p: %pI4:%hu -> %pI4:%hu\n",
             ct, t,
             &t->src.u3.ip, ntohs(t->src.u.all),
@@ -99,13 +103,14 @@ int link_tcp_stat(struct sk_buff *skb) {
             goto nla_put_failure;    
     } else if (ctinfo == IP_CT_IS_REPLY) {
         if (nla_put_flag(nl_skb, ATTR_IP_CT_IS_REPLY))
-            goto nla_put_failure;      
+            goto nla_put_failure;    
     }
     
     if (skb->len) {
         if (nla_put_u16(nl_skb, ATTR_SKB_SOURCE_LEN, skb->len))
             goto nla_put_failure;   
     }
+    
     if (skb->data_len) {
         if (nla_put_u16(nl_skb, ATTR_SKB_SOURCE_DATA_LEN, skb->data_len))
             goto nla_put_failure;     
@@ -113,16 +118,16 @@ int link_tcp_stat(struct sk_buff *skb) {
     
     
     res = nlmsg_end(nl_skb, nlh);
-    //printk(KERN_INFO "Prepared %d bytes to send (%d) \n", nlmsg_len(nlh), pid);
     
-    if (pid)
-        res = nlmsg_unicast(nl_sk, nl_skb, pid);
+    res = nlmsg_unicast(nl_sk, nl_skb, pid);
     //else
     //    res = nlmsg_multicast(nl_sk, nl_skb, pid, RUBINETLN_STATS, GFP_ATOMIC);
     
     if (res < 0) {
         printk(KERN_WARNING "Error while sending message: %d\n", res);
+        pid = -1;
     }
+    
     return res;
         
     nlmsg_failure:
@@ -142,10 +147,15 @@ void link_callback(struct sk_buff *skb) {
     netlink_rcv_skb(skb, &link_step);
 }
 
+void link_bind(int group) {
+    printk(KERN_INFO "bind(%d).\n", group);
+}
+
 int link_init(void) {
     struct netlink_kernel_cfg cfg = {
-        .groups = 0,
+        .groups = RUBINETLN_STATS,
         .input = link_callback,
+        .bind = link_bind,
     };
 
     nl_sk = netlink_kernel_create(&init_net, NETLINK_RUBICON, &cfg);

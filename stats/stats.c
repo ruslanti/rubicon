@@ -14,7 +14,14 @@
 #include <netlink/socket.h>
 #include <netlink/msg.h>
 
-#include <link.h>
+#include <rubi.h>
+
+union ip {
+    uint32_t i;
+    struct {
+       uint8_t b[4];
+    } a;
+};
 
 static int cb_msg_in(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
@@ -35,12 +42,15 @@ static int cb_msg_in(struct nl_msg *msg, void *arg) {
 
 static int cb_valid(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
-    int remaining, ip_ct_new, ip_ct_established, ip_ct_is_reply;
-    uint32_t saddr, daddr;
-    uint16_t source, dest, len, data_len;
+    int remaining, ip_ct_new = 0, ip_ct_established = 0, ip_ct_is_reply = 0;
+    union ip saddr, daddr;
+    uint16_t source, dest, len = 0, data_len = 0;
+    
     
     //nl_msg_dump(msg, stdout);
     nlh = nlmsg_hdr(msg);
+
+    struct conn_stat* stat = (struct conn_stat*)nlmsg_data(nlh);
     struct nlattr *nla = nlmsg_attrdata(nlh, sizeof(struct conn_stat));
     remaining = nlmsg_attrlen(nlh, sizeof(struct conn_stat));
     
@@ -58,10 +68,10 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
                 ip_ct_is_reply = nla_get_flag(nla);
                 break;
             case ATTR_IP_SADDR:
-                saddr = nla_get_u32(nla);
+                saddr.i = nla_get_u32(nla);
                 break;
             case ATTR_IP_DADDR:
-                daddr = nla_get_u32(nla);
+                daddr.i = nla_get_u32(nla);
                 break;
             case ATTR_TCP_SOURCE:
                 source = nla_get_u16(nla);
@@ -80,11 +90,14 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
     };
     
     if (ip_ct_new) {
-        printf("new: %X:%d - %X:%d (%d, %d)\n", saddr, source, daddr, dest, len, data_len);
+        printf("[%p] new: %d.%d.%d.%d:%d - %d.%d.%d.%d:%d (%d, %d)\n", stat->conn_id,
+                saddr.a.b[0], saddr.a.b[1], saddr.a.b[2], saddr.a.b[3], ntohs(source), 
+                daddr.a.b[0], daddr.a.b[1], daddr.a.b[2], daddr.a.b[3], ntohs(dest), 
+                len, data_len);
     } else if (ip_ct_established) {
-        printf("established: (%d, %d)\n", len, data_len);
+        printf("[%p] established: (%d, %d)\n", stat->conn_id, len, data_len);
     } else if (ip_ct_is_reply) {
-        printf("reply: (%d, %d)\n", len, data_len);
+        printf("[%p] reply: (%d, %d)\n", stat->conn_id, len, data_len);
     }
     
     return NL_OK;
