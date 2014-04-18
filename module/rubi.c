@@ -33,51 +33,12 @@
 
 
 int rubi_tcp_hook(struct sk_buff *skb) {
-    enum ip_conntrack_info ctinfo;
-    struct nf_conn *ct;
-    struct iphdr *ip_header;
-    struct tcphdr *tcp_header;
-
-    ip_header = (struct iphdr *) skb_network_header(skb);
-    tcp_header = tcp_hdr(skb);
+    struct tcphdr *tcp_header = tcp_hdr(skb);
 
     if (ntohs(tcp_header->source) == 80 || ntohs(tcp_header->dest) == 80) {
-        ct = nf_ct_get(skb, &ctinfo);
-
-        if (ct != NULL) {
-            if (ctinfo % IP_CT_IS_REPLY == IP_CT_NEW) {
-                struct nf_conntrack_tuple *t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
-                printk(KERN_DEBUG
-                        "%p req tuple %p: %pI4:%hu -> %pI4:%hu\n",
-                        ct, t,
-                        &t->src.u3.ip, ntohs(t->src.u.all),
-                        &t->dst.u3.ip, ntohs(t->dst.u.all));
-
-                t = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
-
-                printk(KERN_DEBUG
-                        "%p res tuple %p: %pI4:%hu -> %pI4:%hu\n",
-                        ct, t,
-                        &t->src.u3.ip, ntohs(t->src.u.all),
-                        &t->dst.u3.ip, ntohs(t->dst.u.all));
-            }
-            //printk(KERN_INFO "src ip %pI4:%d, dst ip %pI4:%d, ct %p, ctinfo %d, flags=%c%c%c%c%c%c",
-            /*       &ip_header->saddr, ntohs(tcp_header->source),
-                     &ip_header->daddr, ntohs(tcp_header->dest),
-                     ct, ctinfo, 
-                     tcp_header->urg ? 'U' : '-',
-                     tcp_header->ack ? 'A' : '-',
-                     tcp_header->psh ? 'P' : '-',
-                     tcp_header->rst ? 'R' : '-',
-                     tcp_header->syn ? 'S' : '-',
-                     tcp_header->fin ? 'F' : '-'
-                     );
-             */
-            link_tcp_stat();
-        }
-        
-        //      nl_stat(1);
+        link_tcp_stat(skb);
     }
+    
     return NF_ACCEPT;
 }
 
