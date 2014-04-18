@@ -46,7 +46,6 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
     union ip saddr, daddr;
     uint16_t source, dest, len = 0, data_len = 0;
     
-    
     //nl_msg_dump(msg, stdout);
     nlh = nlmsg_hdr(msg);
 
