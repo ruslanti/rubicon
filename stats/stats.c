@@ -14,6 +14,8 @@
 #include <netlink/socket.h>
 #include <netlink/msg.h>
 
+#include <mongo.h>
+
 #include <rubi.h>
 
 union ip {
@@ -22,6 +24,8 @@ union ip {
        uint8_t b[4];
     } a;
 };
+
+mongo_sync_connection *conn;
 
 static int cb_msg_in(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
@@ -43,11 +47,13 @@ static int cb_msg_in(struct nl_msg *msg, void *arg) {
 static int cb_valid(struct nl_msg *msg, void *arg) {
     struct nlmsghdr *nlh;
     int remaining, ip_ct_new = 0, ip_ct_established = 0, ip_ct_is_reply = 0;
-    union ip saddr, daddr;
+    //union ip saddr, daddr;
     uint16_t source, dest, len = 0, data_len = 0;
-    
+    bson *doc, *selector;    
     //nl_msg_dump(msg, stdout);
     nlh = nlmsg_hdr(msg);
+    char saddr[INET_ADDRSTRLEN], daddr[INET_ADDRSTRLEN];
+    struct in_addr in;
 
     struct conn_stat* stat = (struct conn_stat*)nlmsg_data(nlh);
     struct nlattr *nla = nlmsg_attrdata(nlh, sizeof(struct conn_stat));
@@ -67,10 +73,16 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
                 ip_ct_is_reply = nla_get_flag(nla);
                 break;
             case ATTR_IP_SADDR:
-                saddr.i = nla_get_u32(nla);
+                in.s_addr = nla_get_u32(nla);
+                if (!inet_ntop(AF_INET, &in, saddr, INET_ADDRSTRLEN)) {
+                    perror("inet_ntop()");
+                }
                 break;
             case ATTR_IP_DADDR:
-                daddr.i = nla_get_u32(nla);
+                in.s_addr = nla_get_u32(nla);
+                if (!inet_ntop(AF_INET, &in, daddr, INET_ADDRSTRLEN)) {
+                    perror("inet_ntop()");
+                }
                 break;
             case ATTR_TCP_SOURCE:
                 source = nla_get_u16(nla);
@@ -89,14 +101,65 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
     };
     
     if (ip_ct_new) {
-        printf("[%p] new: %d.%d.%d.%d:%d - %d.%d.%d.%d:%d (%d, %d)\n", stat->conn_id,
-                saddr.a.b[0], saddr.a.b[1], saddr.a.b[2], saddr.a.b[3], ntohs(source), 
-                daddr.a.b[0], daddr.a.b[1], daddr.a.b[2], daddr.a.b[3], ntohs(dest), 
+        printf("[%p] new: %s:%d - %s:%d (%d, %d)\n", stat->conn_id,
+                saddr, ntohs(source), 
+                daddr, ntohs(dest), 
                 len, data_len);
+        
+        doc = bson_build(
+                BSON_TYPE_INT64, "conn_id", stat->conn_id,
+                BSON_TYPE_STRING, "saddr", saddr, -1,
+                BSON_TYPE_STRING, "daddr", daddr, -1,
+                BSON_TYPE_INT32, "source", ntohs(source),
+                BSON_TYPE_INT32, "dest", ntohs(dest),
+                BSON_TYPE_INT32, "tx", len,
+                BSON_TYPE_INT32, "rx", 0,
+                BSON_TYPE_NONE);
+        bson_finish(doc);
+        
+        if (!mongo_sync_cmd_insert(conn, "rubicon.st", doc, NULL)) {
+            perror("mongo_sync_cmd_insert()");
+        }
+        
+        bson_free(doc);
+        
     } else if (ip_ct_established) {
         printf("[%p] established: (%d, %d)\n", stat->conn_id, len, data_len);
+        
+        selector = bson_build(BSON_TYPE_INT64, "conn_id", stat->conn_id,
+                BSON_TYPE_NONE);
+        bson_finish(selector);
+        
+        doc = bson_build_full (BSON_TYPE_DOCUMENT, "$inc", TRUE,
+                    bson_build (BSON_TYPE_INT32, "tx", len, BSON_TYPE_NONE),
+                    BSON_TYPE_NONE);
+        bson_finish(doc);
+        
+        if (!mongo_sync_cmd_update(conn, "rubicon.st", 0, selector, doc)) {
+            perror("mongo_sync_cmd_update()");
+        }
+        
+        bson_free(selector);
+        bson_free(doc);
+        
     } else if (ip_ct_is_reply) {
         printf("[%p] reply: (%d, %d)\n", stat->conn_id, len, data_len);
+        
+        selector = bson_build(BSON_TYPE_INT64, "conn_id", stat->conn_id,
+                BSON_TYPE_NONE);
+        bson_finish(selector);
+        
+        doc = bson_build_full (BSON_TYPE_DOCUMENT, "$inc", TRUE,
+                    bson_build (BSON_TYPE_INT32, "rx", len, BSON_TYPE_NONE),
+                    BSON_TYPE_NONE);
+        bson_finish(doc);
+        
+        if (!mongo_sync_cmd_update(conn, "rubicon.st", 0, selector, doc)) {
+            perror("mongo_sync_cmd_update()");
+        }
+        
+        bson_free(selector);
+        bson_free(doc);
     }
     
     return NL_OK;
@@ -109,6 +172,15 @@ static int cb_valid(struct nl_msg *msg, void *arg) {
  */
 int main(int argc, char** argv) {
     struct nl_sock *sk;
+    
+    conn = mongo_sync_connect("localhost", 27017, TRUE);
+    if (!conn) {
+        perror("mongo_sync_connect()");
+        exit(1);
+    }
+    
+    mongo_sync_cmd_create (conn, "rubicon", "st", MONGO_COLLECTION_DEFAULTS);
+    //print_coll_info (mongo_sync_cmd_exists (conn, "rubicon", "st"));
 
     sk = nl_socket_alloc();
     if (!sk) {
@@ -152,5 +224,6 @@ nla_put_failure:
 
     nl_socket_free(sk);
 
+    mongo_sync_disconnect(conn);
 }
 
